@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css')}}">
+    <title>Leilão</title>
+</head>
+<body>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
+
+    <div class="container">
+        <div class="card">
+            <div class="card-header">
+                <p>{{leilao.titulo}}</p>
+            </div>
+            <div class="card-body">
+                <p>Descrição: {{leilao.descricao}}</p>
+                <p>Valor inicial: R${{leilao.precoinicial}}</p>
+                {% if leilao.precoatual is none %}
+                    <p id="vlratual">Lance atual: - </p>
+                {% else %}
+                    <p id="vlratual">Valor atual: R$ {{"%.2f" | format(leilao.precoatual) | replace('.', ',')}}</p>
+                {% endif %}
+                <p>Horário de termino: {{leilao.horariotermino}}</p>
+                <p id="ativo">Ativo: {{leilao.ativo}}</p>
+                <p>Lances realizados até o momento: </p>
+                <ul id="lances">
+                    {% for lance in lances %}
+                        <li id=cpf{{lance.cpf}}>{{lance.cpf}} - R$ {{"%.2f" | format(lance.valor) | replace('.', ',')}} </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    <script>
+        
+    const cookies = document.cookie.split('; ')
+    const codServerCookie = cookies.find(cookie => cookie.startsWith('CODSERVER='))?.split('=')[1]
+    const socket = io({
+        query: {
+            CODSERVER: codServerCookie
+        }
+    });
+	const leilao = "{{leilao.leilao}}"
+        socket.emit('join-room-leilao', {leilao: leilao})
+        socket.on("atualizacao_lances", (dados) => {
+            dados.valor = dados.valor.toFixed(2).replace('.', ',')
+            var ul = document.getElementById("lances")
+            if(ul){
+                var lance = ul.querySelector(`#cpf${dados.cpf}`)
+                if(lance){
+                    ul.removeChild(lance)
+                }
+                var lanceNovo = document.createElement("li")
+                lanceNovo.id = `cpf${dados.cpf}`;
+                lanceNovo.innerHTML = `${dados.cpf} - R$ ${dados.valor}`
+                ul.appendChild(lanceNovo)
+                lanceAtualh2 = document.getElementById("vlratual")
+                lanceAtualh2.innerHTML = `Valor atual: R$${dados.valor}`
+            }
+        })
+
+        socket.on("leilao_expirado", (dados) => {
+            var ativop = document.getElementById("ativo")
+            if(ativop){
+                ativop.innerHTML = 'Ativo: Não'
+            }
+        })
+
+        socket.on("leilao_vai_expirar", (dados) => {
+            var ativop = document.getElementById("ativo")
+            if(ativop){
+                ativop.innerHTML = 'Ativo: Sim (Irá Expirar em 30s)'
+            }            
+        })
+    </script>
+</body>
+</html>

@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css')}}">
+    <title>Leilões</title>
+</head>
+<body>
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js" integrity="sha384-2huaZvOR9iDzHqslqwpR87isEmrfxqyWOF7hr7BY6KG0+hVKLoEXMPUJw3ynWuhO" crossorigin="anonymous"></script>
+
+    <div id="fazerLance" class="modal">
+
+        <div class="modal-content">
+          <span class="close">&times;</span>
+        </div>
+      
+    </div>
+
+    <div class="container">
+        <div>
+            <button onclick="criaLeilao()">Cadastrar leilão</button>
+        </div>
+        
+        <div id="leiloes">
+            {% for leilao in leiloes %}
+            
+            <div class="card" id=leilao{{leilao.codigo}}>
+                <div class="card-header">
+                    <p>{{leilao.titulo}}</p>
+                </div>
+                <div class="card-body">
+                    <p>Descrição: {{leilao.descricao}}</p>
+                    <p>Valor inicial: R$ {{"%.2f" | format( leilao.precoinicial|float)  | replace('.', ',')}}</p>
+                    <p id="vlratual">{% if leilao.cpflanceatual is none %}
+                        Lance atual: - 
+                    {% else %}
+                        Lance atual: {{leilao.cpflanceatual}} - R$ {{"%.2f" | format( leilao.valorlanceatual) | replace('.', ',') }}
+                    {% endif %}</p>
+                    
+                    <p>Horário de término: {{leilao.horariotermino}}</p>
+                    <p id="ativo">Ativo: {{leilao.ativo}}</p>
+                </div>
+                <div class="card-footer">
+                    <button id="btnLance" {%if leilao.ativo == 'Não' %} disabled {% endif %} onclick="criaLance('{{leilao.codigo}}' )">Fazer lance</button>
+                    <button style="margin-top: 5px" onClick="visualizarLeilao('{{leilao.codigo}}')">Visualizar leilão</button>
+                </div>
+            </div>
+
+            {% endfor %}
+        </div>
+    </div>
+    
+</ul>
+
+    <script>
+        const cookies = document.cookie.split('; ')
+        const codServerCookie = cookies.find(cookie => cookie.startsWith('CODSERVER='))?.split('=')[1]
+        const socket = io({
+        query: {
+            CODSERVER: codServerCookie
+        }
+        });
+
+        socket.emit('join-room-leiloes')
+        socket.on("atualizacao_leilao", (dados) => {
+            dados.precoinicial = dados.precoinicial.toFixed(2).replace('.', ',')
+            var divleiloes = document.getElementById("leiloes")
+            if(divleiloes){
+                var leilaoNovo = document.createElement("div")
+                leilaoNovo.classList.add("card");
+                leilaoNovo.id = `leilao${dados.codigo}`;
+                leilaoNovo.innerHTML = `
+                    <div class="card-header">
+                        <p>${dados.titulo}</p>
+                    </div>
+                    <div class="card-body">
+                        <p>Descrição: ${dados.descricao}</p>
+                        <p>Valor inicial: R$ ${dados.precoinicial}</p>
+                        
+                        <p id="vlratual"> Lance atual: - </p>
+                        
+                        <p>Horário de término: ${dados.horariotermino}</p>
+
+                        <p id="ativo">Ativo: Sim</p>
+                    </div>
+                    <div class="card-footer">
+                        <button id="btnLance" value=${dados.codigo}  onClick=criaLance('${dados.codigo}')>Fazer lance</button>
+                        <button style="margin-top: 5px" onClick=visualizarLeilao('${dados.codigo}')>Visualizar leilão</button>
+                    </div>`;
+            
+                divleiloes.appendChild(leilaoNovo)
+            }
+        })
+
+        socket.on("atualizacao_lances", (dados) => {
+            dados.valor = dados.valor.toFixed(2).replace('.', ',')
+            var leilao = document.querySelector(`#leilao${dados.leilao}`)
+            if(leilao){
+                var lanceatualp = leilao.querySelector(`#vlratual`)
+                if(lanceatualp){
+                    lanceatualp.innerHTML = `Lance atual: ${dados.cpf} - R$ ${dados.valor}`
+                }
+            }
+            
+        })
+
+        socket.on("leilao_expirado", (cod_leilao) => {
+            var leilao = document.querySelector(`#leilao${cod_leilao}`)
+            if(leilao){
+                var ativop = leilao.querySelector(`#ativo`)
+                if(ativop){
+                    ativop.innerHTML = 'Ativo: Não'
+
+                    var btnLance = leilao.querySelector(`#btnLance`)
+                    if(btnLance){
+                        btnLance.disabled = true;
+                    }
+                }  
+            }
+            
+        })
+
+        socket.on("leilao_vai_expirar", (cod_leilao) => {
+            var leilao = document.querySelector(`#leilao${cod_leilao}`)
+            if(leilao){
+                var ativop = leilao.querySelector(`#ativo`)
+                if(ativop){
+                    ativop.innerHTML = 'Ativo: Sim (Irá Expirar em 30s)'
+                }
+            }
+           
+        })
+
+        var modal = document.getElementById("fazerLance");
+
+        var btn = document.getElementById("btnLance");
+
+        var span = document.getElementsByClassName("close")[0];
+
+        function criaLance(idLeilao) {
+
+            modal.style.display = "block";
+
+
+            modal.innerHTML = `
+            <div class="modal-content">
+                <form id="cadastralance" method="post" action="/place-bid">
+                    <div>
+                        <label for="cpf">Digite o seu CPF </label><br>
+                        <input type="number" id="cpf" name="cpf" required/>
+                    </div>
+                    <div>
+                        <label for="valor">Digite o valor </label><br>
+                        <input type="number" id="valor" name="valor" step="any" required/>
+                    </div>
+                    <button type="submit" value=${idLeilao}> Cadastrar Lance</button>
+                </form>  
+            </div>`
+            
+            document.getElementById('cadastralance').addEventListener('submit', function(e){
+                e.preventDefault()
+                    
+                const leilao = e.submitter.value;
+
+                const dadosLance = {
+                    leilao: leilao,
+                    cpf: document.getElementById('cpf').value,
+                    valor: document.getElementById('valor').value
+                }
+                jsonDados = JSON.stringify(dadosLance);
+                fetch('/place-bid', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: jsonDados,
+		    credentials: 'include'
+                })
+                .then(resposta => resposta.text())
+                .then(resposta => {
+                    modal.style.display = "none";
+                    alert(resposta)
+                })
+                .catch(erro => alert("Erro"))
+                })
+
+            }
+
+        function visualizarLeilao(idLeilao){
+            window.open(`/auction/${idLeilao}`)
+        }
+
+        function criaLeilao() {
+
+            modal.style.display = "block";
+
+
+            modal.innerHTML = `
+            <div class="modal-content">
+                <form id="cadastraleilao" method="post" action="/new-auction">
+                    <div>
+                        <label for="titulo">Digite o titulo do leilão </label><br>
+                        <input type="text" id="titulo" name="titulo" required/>
+                    </div>
+                    <div>
+                        <label for="valor">Digite a descrição do leilão </label><br>
+                        <input type="text" id="descricao" name="descricao" required/>
+                    </div>
+                    <div>
+                        <label for="titulo">Digite o preço inicial do leilão </label><br>
+                        <input type="number" id="preco" name="precoInicial" step="any" required/>
+                    </div>
+                    <div>
+                        <label for="valor">Digite o horário de término do leilão</label><br>
+                        <input type="datetime-local" id="data" name="termino" required/>
+                    </div>
+
+                    <button type="submit"> Cadastrar Leilão</button>
+                </form>  
+            </div>`
+
+
+            
+
+            document.getElementById('cadastraleilao').addEventListener('submit', function(e){
+                e.preventDefault()
+                    
+                const dadosLeilao = {
+                    precoinicial: document.getElementById('preco').value,
+                    titulo: document.getElementById('titulo').value,
+                    descricao: document.getElementById('descricao').value,
+                    horariotermino: document.getElementById('data').value
+                }
+                jsonDados = JSON.stringify(dadosLeilao);
+                fetch('/create-auction', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: jsonDados,
+		    credentials: 'include'
+                })
+                .then(resposta => resposta.text())
+                .then(resposta => {
+                    modal.style.display = "none";
+                    alert(resposta)
+                })
+                .catch(erro => alert("Erro"))
+                })
+        }
+
+
+        span.onclick = function() {
+            modal.style.display = "none";
+        }
+
+
+        window.onclick = function(event) {
+            if (event.target == modal) {
+                modal.style.display = "none";
+            }
+        }
+
+        
+
+        //Falta o evento de expirou o lance
+    </script>
+</body>
+</html>
