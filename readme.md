@@ -170,11 +170,24 @@ Abaixo a descrição dos testes executados
 
 ---------------------
 
+<strong>Teste</strong>: Visualizar leilão inexistente.
+
+<strong>Saida</strong>: Irá mostrar a mensagem de leilão inexistente
+
+---------------------
+
+<strong>Teste</strong>: Fazer lance em um leilão inexistente.
+
+<strong>Saida</strong>: Irá mostrar a mensagem de leilão inexistente
+
+---------------------
+
 <strong>Teste</strong>: Testando o balanceador de carga, mandando varias requisições
 
 <strong>Saida</strong>: Requisições sendo distribuidas corretamente
 
 ---------------------
+
 
 ### Execução do projeto localmente, sem docker
 Para executar o projeto localmente, siga os seguintes passos:
