@@ -61,9 +61,9 @@ sudo apt install docker-compose
 	```
 	3.2. **Workers**: Acesse nosso nó worker, que será o chamado redis, usando `multipass shell redis`, entre no cluster swarm como worker (o comando do bloco anterior irá disponibilizar um comando que você deve executar no nó worker), e depois retorne para o nó manager usando `multipass shell flask`. 
 
-	3.3. **Criando os arquivos**: Crie uma pasta chamada TRABALHOFINAL_SD e coloque dentro dela todos os arquivos que estão dentro da pasta TRABALHOFINAL_SD do repositório. Você pode usar o `multipass transfer` para facilitar esta etapa.
+	3.3. **Criando os arquivos**: Crie uma pasta chamada SD-PROJETOFINAL e coloque dentro dela todos os arquivos que estão dentro da pasta SD-PROJETOFINAL do repositório. Você pode usar o `multipass transfer` para facilitar esta etapa.
 
-	3.4. **Antes de prosseguir, entre dentro da pasta TRABALHOFINAL_SD e se mantenha nela**.
+	3.4. **Antes de prosseguir, entre dentro da pasta SD-PROJETOFINAL e se mantenha nela**.
 
 	3.5. **Construindo a imagem e iniciando os containers**: Agora, construa a imagem Docker e inicie os containers usando o Docker Compose.
 	```
